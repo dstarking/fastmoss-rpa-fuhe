@@ -20,7 +20,7 @@
 
 | 用户要求 | 结果 |
 |---|---|
-| `py -3.13 ...` 实际 Windows 测试 | 未执行；本机没有 Windows launcher 或 Python 3.13 |
+| 用户电脑 `py -3.13 ...` 和浏览器实际测试 | 未执行；云端无法访问用户 Windows。GitHub Windows Python 3.13 离线测试另见 Actions |
 | `bsk status` | 实际执行得到 `bsk: command not found` |
 | 实际打开 FastMoss 销量榜 | 未执行，无用户浏览器连接 |
 | 实际确认销量榜 URL / 周月标签 | 未确认 |

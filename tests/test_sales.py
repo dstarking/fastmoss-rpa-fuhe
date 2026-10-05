@@ -262,7 +262,7 @@ class CollectorTests(unittest.TestCase):
             args = SimpleNamespace(week_dir=root/'week',month_dir=root/'month', report=root/'report.md',
                                    summary=root/'summary.csv', candidates=root/'candidates.csv')
             self.assertEqual(run_analysis(args),0)
-            report = args.report.read_text()
+            report = args.report.read_text(encoding='utf-8')
             for section in ('评分规则','三级类目机会排行榜','A级爆款商品池','B级商品池','失败类目','数据风险说明'):
                 self.assertIn(section,report)
             self.assertEqual(len(load_directory(root/'week','week')[0]),12)
