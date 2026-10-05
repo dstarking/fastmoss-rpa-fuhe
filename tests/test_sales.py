@@ -1,5 +1,6 @@
 """Synthetic fixtures only. These tests do NOT certify live FastMoss DOM."""
 import json
+import io
 import os
 import subprocess
 import sys
@@ -16,7 +17,7 @@ import bridge_browserskill as bridge
 from category_tree import validate_categories, discover_categories
 from sales import collect_batch, scrape_sales, reusable, verify_rows
 from sales_browser import load_profile, SalesBrowser
-from sales_io import (category_filename, file_hash, identity, sanitize_filename, write_csv, write_json)
+from sales_io import (category_filename, file_hash, identity, sanitize_filename, write_csv, write_json, log)
 from sales_parser import build_schema, parse_row, parse_table, product_id_from_url
 from pet_analysis import (velocity_ratio, join_periods, percentile, score_hot, score_opportunities,
                           analyze_samples, load_directory, run_analysis)
@@ -114,6 +115,13 @@ class ParserTests(unittest.TestCase):
 
 
 class FilenameTests(unittest.TestCase):
+    def test_windows_non_utf8_log_never_aborts(self):
+        buffer = io.BytesIO()
+        stream = io.TextIOWrapper(buffer, encoding='cp1252')
+        log('宠物用品', stream=stream)
+        stream.flush()
+        self.assertIn(b'\\u5ba0', buffer.getvalue())
+
     def test_windows_invalid_reserved_and_collisions(self):
         self.assertEqual(sanitize_filename('a<>:"/\\|?*b. '), 'a_________b')
         self.assertEqual(sanitize_filename('CON.txt'), '_CON.txt')

@@ -4,7 +4,7 @@
 
 ## 已执行
 
-- `python -m unittest discover -s tests -v`：30 个测试通过。
+- `python -m unittest discover -s tests -v`：31 个测试通过。
 - 根入口 `--help`、`sales --help`、`pet-sales --help`、`pet-analyze --help`：全部退出码 0；完整输出见 CLI_HELP.md。
 - 原有 scrape/filter/analyze/market 的 `--help`：全部退出码 0。原有参数与成功结果 schema 保留；底层失败改抛异常，由最外层决定退出码。
 - `python -m compileall -q scripts fastmoss_rpa.py`：通过。
@@ -30,7 +30,7 @@
 | 两个真实三级类目批处理 | 未执行 |
 | 对真实测试 CSV 跑 pet-analyze | 未执行；只有合成测试数据通过 |
 
-新增 GitHub Actions 供 Ubuntu/Windows Python 3.13 执行同一套离线 tests 和 CLI 帮助；是否实际执行成功以仓库 Actions 页面为准。CI 不连接用户 BrowserSkill，不代表已完成真实 DOM 验证。
+GitHub Actions 已实际执行 Python 3.13 离线 tests 和 CLI 帮助。首次 Ubuntu 成功，Windows 底层中文日志在 cp1252 环境失败；已修复并新增编码回归测试。修复后的状态与运行链接以仓库 Actions 页面为准。CI 不连接用户 BrowserSkill，不代表已完成真实 DOM 验证。
 
 ## 行为边界
 

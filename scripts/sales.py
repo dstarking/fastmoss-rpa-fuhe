@@ -5,7 +5,7 @@ from pathlib import Path
 from category_tree import discover_categories, read_cache
 from exceptions import FastMossError, FilterVerificationError, NoDataError, ParseError
 from sales_browser import SalesBrowser, load_profile
-from sales_io import (category_filename, file_hash, identity, read_csv, write_csv, write_json)
+from sales_io import (category_filename, file_hash, identity, read_csv, write_csv, write_json, log)
 from sales_parser import parse_table
 from value_parser import parse_value
 
@@ -144,10 +144,10 @@ def collect_batch(browser, items, *, country, shop_type, period, pages, out_dir,
         manifest['categories'][item['path']] = entry
         if entry['status'] == 'success':
             merged.extend(read_csv(path))
-            print(f'[success] {item["path"]}: {entry["rows"]} rows')
+            log(f'[success] {item["path"]}: {entry["rows"]} rows')
         else:
             failed.append({'path': item['path'], **entry})
-            print(f'[failed] {item["path"]}: {entry.get("errors")}')
+            log(f'[failed] {item["path"]}: {entry.get("errors")}')
         write_json(manifest_path, manifest)
         write_json(directory / '_failed.json', failed)
     manifest.update(completed_at=utc_now(), succeeded=len(items) - len(failed), failed=len(failed))
@@ -175,7 +175,7 @@ def run_single(args):
     if args.resume and receipt_path.is_file():
         receipt = json.loads(receipt_path.read_text(encoding='utf-8'))
         if reusable({**receipt, 'status': 'success'}, spec, Path(args.out)):
-            print(f'[resume] 已核验：{args.out}')
+            log(f'[resume] 已核验：{args.out}')
             return 0
     browser = SalesBrowser(profile, nav_sleep=args.nav_sleep, filter_sleep=args.filter_sleep,
                            page_sleep=args.page_sleep)
@@ -185,7 +185,7 @@ def run_single(args):
                 receipt = scrape_sales(browser, country=args.country, shop_type=args.shop_type,
                                        category_path=args.category_path, period=args.period,
                                        pages=args.pages, out=args.out)
-                print(f'[done] {receipt["rows"]} rows -> {args.out}')
+                log(f'[done] {receipt["rows"]} rows -> {args.out}')
                 return 0
             except FastMossError:
                 if attempt == args.retries:
@@ -205,7 +205,7 @@ def run_pet(args):
                                         root=args.category_root, cache=cache)
         else:
             items = read_cache(cache, args.category_root)
-        print(f'[categories] {len(items)} 三级类目 -> {cache}')
+        log(f'[categories] {len(items)} 三级类目 -> {cache}')
         if args.discover_only:
             return 0
         if args.limit_categories:

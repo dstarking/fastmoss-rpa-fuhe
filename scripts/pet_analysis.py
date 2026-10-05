@@ -5,7 +5,7 @@ from collections import defaultdict
 from pathlib import Path
 from exceptions import FilterVerificationError, NoDataError, ParseError
 from sales import verify_rows, reusable
-from sales_io import atomic_write, identity, normalize, read_csv, write_csv
+from sales_io import atomic_write, identity, normalize, read_csv, write_csv, log
 from value_parser import parse_value
 
 HOT_WEIGHTS = {'week_sales': .35, 'velocity_ratio': .25, 'sales_growth': .15,
@@ -317,5 +317,5 @@ def run_analysis(args):
     write_csv(args.candidates, products, list(products[0]))
     report = render_report(categories, products, wi, mi, week, month)
     atomic_write(args.report, lambda stream: stream.write(report))
-    print(f'[done] {len(categories)} 类目，{len(products)} 商品 -> {args.report}')
+    log(f'[done] {len(categories)} 类目，{len(products)} 商品 -> {args.report}')
     return 0

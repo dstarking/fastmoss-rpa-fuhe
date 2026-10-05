@@ -5,6 +5,7 @@ import json
 import os
 import re
 import tempfile
+import sys
 import unicodedata
 from pathlib import Path
 
@@ -77,3 +78,11 @@ def read_csv(path):
 
 def file_hash(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def log(message, *, stream=None):
+    """Progress logging must never abort a data transaction on Windows locales."""
+    stream = stream if stream is not None else sys.stdout
+    encoding = getattr(stream, 'encoding', None) or 'utf-8'
+    text = str(message).encode(encoding, errors='backslashreplace').decode(encoding)
+    print(text, file=stream)
