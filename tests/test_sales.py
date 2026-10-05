@@ -302,7 +302,7 @@ class CLITests(unittest.TestCase):
     def test_all_help_without_browser(self):
         for command in ([],['sales'],['pet-sales'],['pet-analyze'],['scrape'],['filter'],['analyze'],['market']):
             with self.subTest(command=command):
-                result = subprocess.run([sys.executable,str(ROOT/'fastmoss_rpa.py'),*command,'--help'],capture_output=True,text=True)
+                result = subprocess.run([sys.executable,str(ROOT/'fastmoss_rpa.py'),*command,'--help'],capture_output=True,text=True,encoding='utf-8')
                 self.assertEqual(result.returncode,0,result.stderr)
                 self.assertTrue(result.stdout)
 

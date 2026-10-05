@@ -74,6 +74,9 @@ def dispatch(argv=None):
 
 
 def main(argv=None):
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, 'reconfigure'):
+            stream.reconfigure(encoding='utf-8')
     from exceptions import FastMossError, CLIUsageError
     try:
         return dispatch(argv) or 0

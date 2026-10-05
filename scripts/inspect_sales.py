@@ -19,6 +19,9 @@ from sales_io import write_json, atomic_write
 
 
 def main(argv=None):
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, 'reconfigure'):
+            stream.reconfigure(encoding='utf-8')
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--url', required=True, help='从实际页面地址栏复制的商品销量榜 HTTPS URL')
     parser.add_argument('--out-dir', required=True, help='本地调查目录，请勿提交完整 snapshot')
