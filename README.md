@@ -2,6 +2,25 @@
 
 > **一个命令，搞定 7 大榜单的 TikTok 小店数据抓取、筛选、分析与品类大盘。**
 
+## 商品销量榜 CLI 扩展（feature/sales-cli）
+
+**当前交付状态：离线测试已通过，真实 BrowserSkill/FastMoss DOM 验证未完成。** 本分支不会猜测销量榜 URL、筛选 selector 或周期标签。缺少实际调查的 DOM profile 时，新采集命令拒绝运行且不保存 CSV。请先在已登录的 Windows 环境完成 [页面调查](docs/DOM_INVESTIGATION.md)。
+
+- `sales`：国家 AND 店铺类型 AND 精确三级类目 AND week/month；每步及每页核验已选择状态和已提交数据状态。
+- `pet-sales`：动态发现三级类目、缓存、逐类额外重试 2 次、失败继续、manifest、resume、成功样本合并、discover-only。
+- `pet-analyze`：离线关联周/月样本、类目内 hot_score、类目间 opportunity_score、A/B/C 商品池、三个报告文件。
+- 原有 `scrape` / `filter` / `analyze` / `market` 命令参数保留；新 `sales` 不复用旧 products 的单维度 if/elif 筛选。
+- bridge：BSK_BIN → PATH，禁用自动 daemon 启动；Windows Job Object 环境使用单独窗口 `bsk daemon start --foreground`，主窗口 `$env:BSK_AUTO_START='0'`。
+- Python 标准库实现；数据在 `F:/fastmoss/data`，报告在 `F:/fastmoss/report`，CSV 使用 utf-8-sig。
+
+**完整新命令说明和从零 PowerShell 顺序：** [WINDOWS_WORKFLOW.md](docs/WINDOWS_WORKFLOW.md)。
+**全部 CLI 帮助：** [CLI_HELP.md](docs/CLI_HELP.md)。
+**验证记录和未完成项：** [TESTING.md](docs/TESTING.md)。
+
+先目录发现 → 单类目一页 → 两类目周/月 → 分析 smoke CSV → 全量周榜 → 全量月榜 → 最终分析；真实 DOM 调查成功后才执行采集。
+
+产品热度权重：35/25/15/10/10/5；类目机会权重：30/30/20/20。报告说明缺失值、相对分、TopN 截断、不能将样本集中度视作完整市场份额或低竞争证据。
+
 ---
 
 ## 这是什么？

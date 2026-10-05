@@ -1,37 +1,63 @@
-"""BrowserSkill (bsk) transport adapter for FastMoss scrapers.
+"""BrowserSkill subprocess transport; never launches a daemon.
 
-Replaces the old kimi-webbridge HTTP daemon (127.0.0.1:10086). Public API
-mirrors the old kimi transport so the scrapers need almost no changes:
-
-    from bridge_browserskill import call, evaluate, session_stop
-
-    call(action, args, session) -> dict   # action in navigate/evaluate/screenshot/close_session
-    evaluate(code, session)     -> parsed JSON (dict/list) or {"error": ...}/{"raw": ...}
-    session_stop(name=None)     -> stop one named session, or all if name is None
-
-A bsk session is started lazily on first use of a given `session` name and is
-stopped automatically at process exit (atexit) or via an explicit session_stop().
+Legacy call/evaluate/session_stop shapes are retained. Command failures now
+raise typed exceptions, rather than silently continuing on a failed navigation.
+Only sessions created by this process are stopped.
 """
+import atexit
 import json
 import os
+import shutil
 import subprocess
-import atexit
-from pathlib import Path
+from exceptions import BrowserSkillError, BrowserNotConnectedError
 
-BSK = os.environ.get("BSK_BIN", r"C:\Users\49707\.local\bin\bsk.exe")
-
-# session name -> bsk session id (4-letter)
 _SESSIONS = {}
+_HINT = '请在单独 PowerShell 运行：bsk daemon start --foreground；确认扩展已连接。'
+
+
+def resolve_bsk():
+    candidate = os.environ.get('BSK_BIN') or shutil.which('bsk')
+    if not candidate:
+        raise BrowserSkillError('找不到 BrowserSkill。设置 BSK_BIN 或将 bsk 加入 PATH。' + _HINT)
+    return candidate
+
+
+def run_bsk(args, timeout=60):
+    env = os.environ.copy()
+    # Never allow a subprocess to auto-launch a Windows Job Object daemon.
+    env['BSK_AUTO_START'] = '0'
+    try:
+        p = subprocess.run([resolve_bsk(), *args], capture_output=True,
+                           text=True, encoding='utf-8', errors='replace',
+                           timeout=timeout, env=env)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise BrowserSkillError(f'BrowserSkill 调用失败：{exc}。{_HINT}') from exc
+    if p.returncode:
+        message = (p.stderr or p.stdout or 'empty error output').strip()
+        raise BrowserNotConnectedError(f'bsk {args[0]} 失败：{message}。{_HINT}')
+    return (p.stdout or '').strip()
+
+
+def _decode(out):
+    try:
+        value = json.loads(out)
+        # evaluate(JSON.stringify(...)) can produce a JSON string or direct object.
+        if isinstance(value, str):
+            try:
+                return json.loads(value)
+            except ValueError:
+                return {'raw': value}
+        return value
+    except ValueError:
+        return {'raw': out}
 
 
 def _start(name):
-    p = subprocess.run([BSK, "session", "start", "--json"],
-                       capture_output=True, text=True, timeout=60)
-    if p.returncode != 0:
-        raise RuntimeError(f"bsk session start failed: {p.stderr.strip()}")
-    sid = json.loads(p.stdout)["session_id"]
-    _SESSIONS[name] = sid
-    return sid
+    out = _decode(run_bsk(['session', 'start', '--json']))
+    if not isinstance(out, dict) or not out.get('session_id'):
+        raise BrowserNotConnectedError('bsk session start 未返回 session_id。' + _HINT)
+    _SESSIONS[name] = str(out['session_id'])
+    return _SESSIONS[name]
 
 
 def _sid(name):
@@ -39,61 +65,48 @@ def _sid(name):
 
 
 def call(action, args, session):
+    if action == 'close_session':
+        session_stop(session)
+        return {'ok': True}
     sid = _sid(session)
-    if action == "navigate":
-        url = args.get("url", "")
-        p = subprocess.run([BSK, "navigate", url, "--session", sid,
-                            "--wait-until", "load", "--timeout", "30s"],
-                           capture_output=True, text=True, timeout=45)
-        return {"ok": p.returncode == 0, "data": p.stdout.strip()}
-    if action == "evaluate":
-        code = args.get("code", "")
-        p = subprocess.run([BSK, "evaluate", code, "--session", sid, "--timeout", "30s"],
-                           capture_output=True, text=True, timeout=45)
-        out = (p.stdout or "").strip()
-        if p.returncode != 0 or not out:
-            return {"ok": False, "error": {"message": (p.stderr or "empty output").strip()}}
-        # bsk prints the JSON value text directly (return-by-value). Wrap it to
-        # match the old kimi shape {type: "string", value: <json>} so the
-        # existing evaluate() wrapper can json.loads(data["value"]) unchanged.
-        return {"ok": True, "data": {"type": "string", "value": out}}
-    if action == "screenshot":
-        out_path = args.get("path") or args.get("out")
-        cmd = [BSK, "screenshot", "--session", sid]
-        if out_path:
-            cmd += ["--out", out_path]
-        p = subprocess.run(cmd, capture_output=True, text=True, timeout=45)
-        return {"ok": p.returncode == 0, "data": p.stdout.strip()}
-    if action == "close_session":
-        if session in _SESSIONS:
-            subprocess.run([BSK, "session", "stop", _SESSIONS.pop(session)],
-                           capture_output=True, text=True, timeout=30)
-        return {"ok": True}
-    return {"ok": False, "error": {"message": f"unknown action: {action}"}}
+    if action == 'navigate':
+        out = run_bsk(['navigate', args['url'], '--session', sid,
+                       '--wait-until', 'load', '--timeout', '30s'], 45)
+        return {'ok': True, 'data': out}
+    if action == 'evaluate':
+        out = run_bsk(['evaluate', args['code'], '--session', sid, '--timeout', '30s'], 45)
+        if not out:
+            raise BrowserSkillError('bsk evaluate 返回空内容。')
+        return {'ok': True, 'data': {'type': 'string', 'value': out}}
+    if action == 'snapshot':
+        return {'ok': True, 'data': run_bsk(['snapshot', '--session', sid], 45)}
+    if action == 'screenshot':
+        cmd = ['screenshot', '--session', sid]
+        path = args.get('path') or args.get('out')
+        if path:
+            cmd += ['--out', str(path)]
+        return {'ok': True, 'data': run_bsk(cmd, 45)}
+    raise BrowserSkillError(f'Unknown BrowserSkill action: {action}')
 
 
 def evaluate(code, session):
-    res = call("evaluate", {"code": code}, session)
-    if not res.get("ok"):
-        return {"error": res.get("error", {}).get("message", "unknown")}
-    data = res["data"]
-    if isinstance(data, dict) and data.get("type") == "string":
-        try:
-            return json.loads(data["value"])
-        except Exception:
-            return {"raw": data.get("value")}
-    return data
+    return _decode(call('evaluate', {'code': code}, session)['data']['value'])
 
 
 def session_stop(name=None):
-    if name is None:
-        for _n, _s in list(_SESSIONS.items()):
-            subprocess.run([BSK, "session", "stop", _s], capture_output=True, text=True, timeout=30)
-        _SESSIONS.clear()
-        return
-    sid = _SESSIONS.pop(name, None)
-    if sid:
-        subprocess.run([BSK, "session", "stop", sid], capture_output=True, text=True, timeout=30)
+    names = list(_SESSIONS) if name is None else [name]
+    for item in names:
+        sid = _SESSIONS.pop(item, None)
+        if sid:
+            run_bsk(['session', 'stop', sid], 30)
 
 
-atexit.register(session_stop)
+def _cleanup():
+    # Exit cleanup must not obscure the CLI's actual failure or stop other sessions.
+    for name in list(_SESSIONS):
+        try:
+            session_stop(name)
+        except BrowserSkillError:
+            pass
+
+atexit.register(_cleanup)
