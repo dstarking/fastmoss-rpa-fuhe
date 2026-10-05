@@ -16,7 +16,7 @@ fetch_json for each metric.
 import argparse
 import csv
 import json
-import sys
+from exceptions import FastMossError
 import time
 from datetime import datetime
 from pathlib import Path
@@ -191,14 +191,14 @@ def fetch_base(region="", action="1", pcid=None, out=None,
     res = fetch_json(url, session)
     if "_error" in res:
         print(f"[error] {res['_error']}")
-        sys.exit(1)
+        raise FastMossError("FastMoss market API 请求或解析失败，参见上面的错误详情。")
     if res.get("status") != 200:
         print(f"[error] HTTP {res.get('status')}: {res}")
-        sys.exit(1)
+        raise FastMossError("FastMoss market API 请求或解析失败，参见上面的错误详情。")
     body = res.get("data", {})
     if body.get("code") != 200:
         print(f"[error] API code {body.get('code')}: {body}")
-        sys.exit(1)
+        raise FastMossError("FastMoss market API 请求或解析失败，参见上面的错误详情。")
     payload = body.get("data", {})
     payload["_region"] = region or "global"
     payload["_region_name"] = REGION_NAMES.get(region, "")
@@ -248,14 +248,14 @@ def fetch_sales_chart(region="", action="1", pcid=None, out=None, session=DEFAUL
     res = fetch_json(url, session)
     if "_error" in res:
         print(f"[error] {res['_error']}")
-        sys.exit(1)
+        raise FastMossError("FastMoss market API 请求或解析失败，参见上面的错误详情。")
     if res.get("status") != 200:
         print(f"[error] HTTP {res.get('status')}: {res}")
-        sys.exit(1)
+        raise FastMossError("FastMoss market API 请求或解析失败，参见上面的错误详情。")
     body = res.get("data", {})
     if body.get("code") != 200:
         print(f"[error] API code {body.get('code')}: {body}")
-        sys.exit(1)
+        raise FastMossError("FastMoss market API 请求或解析失败，参见上面的错误详情。")
     items = body.get("data", {}).get("list", [])
     rows = []
     for item in items:
@@ -285,10 +285,10 @@ def fetch_filter_info(out=None, session=DEFAULT_SESSION):
     res = fetch_json("/api/analysis/GoodCategory/filterInfo", session)
     if "_error" in res:
         print(f"[error] {res['_error']}")
-        sys.exit(1)
+        raise FastMossError("FastMoss market API 请求或解析失败，参见上面的错误详情。")
     if res.get("status") != 200:
         print(f"[error] HTTP {res.get('status')}: {res}")
-        sys.exit(1)
+        raise FastMossError("FastMoss market API 请求或解析失败，参见上面的错误详情。")
     payload = res.get("data", {}).get("data", res.get("data", {}))
     if not isinstance(payload, dict):
         payload = {"raw": res}

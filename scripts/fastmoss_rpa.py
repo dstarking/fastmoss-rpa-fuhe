@@ -35,6 +35,9 @@ FastMoss 统一技能入口
   scrape    抓取单个榜单（无筛选）
   filter    带国家/品类/时间筛选抓取
   analyze   生成多维度分析 MD 报告
+  sales     严格核验国家/跨境店/三级类目/周期的商品销量榜
+  pet-sales 动态读取全部宠物三级类目并批量采集
+  pet-analyze 周/月样本交叉分析，生成相对机会报告
   market    调用 FastMoss 品类大盘 API（distribution/base/sales-chart/filter-info）
 
 示例:
@@ -47,12 +50,15 @@ FastMoss 统一技能入口
 """
 
 
-def main(argv=None):
+def dispatch(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     if not argv or argv[0] in ("-h", "--help"):
         print(USAGE)
         return
     sub, rest = argv[0], argv[1:]
+    if sub in ("sales", "pet-sales", "pet-analyze"):
+        import sales_cli
+        return sales_cli.main(sub, rest)
     if sub == "scrape":
         core.main(["scrape"] + rest)
     elif sub == "filter":
@@ -64,8 +70,23 @@ def main(argv=None):
     else:
         print(f"未知子命令: {sub}\n")
         print(USAGE)
-        sys.exit(2)
+        return 2
+
+
+def main(argv=None):
+    from exceptions import FastMossError, CLIUsageError
+    try:
+        return dispatch(argv) or 0
+    except CLIUsageError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 2
+    except (FastMossError, OSError, ValueError) as exc:
+        print(f"ERROR [{type(exc).__name__}]: {exc}", file=sys.stderr)
+        return 1
+    except KeyboardInterrupt:
+        print("任务已中断；用 --resume 恢复已核验完成的类目。", file=sys.stderr)
+        return 130
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

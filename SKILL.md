@@ -1,6 +1,6 @@
 ---
 name: fastmoss-rpa
-description: "Unified FastMoss (fastmoss.com) TikTok Shop RPA . Covers all 7 boards: PRODUCT rankings (新品/销量/热推/视频商品榜, with country/category/shop-type filters + single-shop cadence), CREATOR rankings (涨粉/带货/蓝V/热门/黑马), SHOP rankings (销量/热推), ADS trends (标签/关键词/品类), CREATIVE materials (视频/音乐/标签), LIVESTREAM rankings (TT直播/直播爆品/直播带货达人), and the MARKET category-distribution API (行业格局/市场总览/日销时序). Use whenever the user wants to scrape, filter, analyze, or pull any FastMoss TikTok Shop data. Drives the user's real logged-in browser via BrowserSkill (bsk). Self-contained — includes environment notes and 7 Markdown report templates."
+description: "Unified FastMoss (fastmoss.com) TikTok Shop RPA . Covers all 7 boards: PRODUCT rankings (新品/销量/热推/视频商品榜, with country/category/shop-type filters + single-shop cadence), CREATOR rankings (涨粉/带货/蓝V/热门/黑马), SHOP rankings (销量/热推), ADS trends (标签/关键词/品类), CREATIVE materials (视频/音乐/标签), LIVESTREAM rankings (TT直播/直播爆品/直播带货达人), and the MARKET category-distribution API (行业格局/市场总览/日销时序). Also includes fail-closed sales / pet-sales and offline pet-analyze CLIs for Singapore cross-border pet-category week/month analysis. Use whenever the user wants to scrape, filter, analyze, or pull any FastMoss TikTok Shop data. Drives the user's real logged-in browser via BrowserSkill (bsk). Self-contained — includes environment notes and 7 Markdown report templates."
 ---
 
 # fastmoss-rpa (unified)
@@ -11,6 +11,23 @@ description: "Unified FastMoss (fastmoss.com) TikTok Shop RPA . Covers all 7 boa
 entry point. The scraping logic lives in one generic engine (`scripts/core.py`);
 all board differences are data in `scripts/sections.py`. The old
 `.claude/skills/fastmoss-*` directories are **kept as backup** and are not deleted.
+
+## Strict sales CLI workflow
+
+Read [the Windows workflow](docs/WINDOWS_WORKFLOW.md) for full new command examples, directories, retries, and recovery. Read [DOM investigation](docs/DOM_INVESTIGATION.md) before implementing or using sales selectors.
+
+Treat the current sales adapter as **not live-verified** until a real BrowserSkill investigation and smoke tests complete. Do not claim an actual URL, Chinese period labels, category count, row count, or real CSV validation from synthetic tests.
+
+- Require BrowserSkill extension connection and FastMoss login. On Windows Job Object environments, keep `bsk daemon start --foreground` running in a separate PowerShell; set `BSK_AUTO_START=0`. Do not spawn a background daemon from Python.
+- Preserve `scrape`, `filter`, `analyze`, `market`. Invoke root `fastmoss_rpa.py` or existing `scripts/fastmoss_rpa.py`.
+- Use `sales --country 新加坡 --shop-type 跨境店 --category-path "一级>二级>三级" --period week|month --pages N --out CSV` for simultaneous dimensions. Require investigated local profile via `--dom-profile` or `FASTMOSS_SALES_PROFILE`.
+- Use `pet-sales --category-root 宠物用品 --discover-only --category-cache JSON` to discover all L3 leaves within the actual filter scope. Never hardcode the category tree or match text in the product table.
+- Use `pet-sales --period week|month --out-dir DIR --category-cache JSON [--refresh-categories] [--resume]`. Additional retries default to 2; failed leaves continue and appear in manifest/failed JSON. Keep CSV receipts. Validate request/hash/metadata before resume.
+- Set `--nav-sleep 6 --filter-sleep 3 --page-sleep 4` as minimum waits. Still verify selected state, completed table query filters, revision, page and stable data. Any unknown field must raise an exception before saving.
+- Read actual `thead` schema for `sales`; map only observed header labels. Unknown columns must not shift indices. Parse product IDs only from product-cell links. Preserve missing values; never substitute 0 for an unparseable value.
+- Run week then month collection, then `pet-analyze --week-dir DIR --month-dir DIR --report MD --summary CSV --candidates CSV`. Store data under `F:/fastmoss/data`, reports under `F:/fastmoss/report`.
+- Explain that hot_score is relative within L3 and opportunity_score is relative across sampled L3 categories. Top10 sample concentration is not full market share or proof of low competition.
+- Test a real L3 single page, two L3 batch week/month, and analysis using real CSV before full collection. Do not submit full FastMoss HTML, login data, local snapshots, or local profile evidence to the repository.
 
 ## Architecture
 
@@ -31,8 +48,9 @@ fastmoss_rpa.py            # single CLI: scrape / filter / analyze / market
 - **BrowserSkill (`bsk`)** installed and connected; the BrowserSkill extension
   is installed in Chrome/Edge and the user is **logged into fastmoss.com**.
   Verify with `bsk status` → `browsers connected: N` (N ≥ 1).
-- No local HTTP daemon — bsk drives the real browser and reuses the login
-  session (cookies + origin), which is why the market API calls work.
+- Start the BrowserSkill daemon explicitly when required. On Windows use
+  `bsk daemon start --foreground`; the Python bridge never starts it automatically.
+  Browser sessions reuse login cookies and origin.
 
 Full environment/shell quirks are in `references/environment.md`.
 

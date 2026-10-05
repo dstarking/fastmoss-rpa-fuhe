@@ -18,7 +18,7 @@ Transport (call / evaluate / session_stop) comes from bridge_browserskill.
 import argparse
 import csv
 import json
-import sys
+from exceptions import CLIUsageError, NoDataError
 import time
 from pathlib import Path
 
@@ -92,7 +92,7 @@ def scrape_table(section, ranking_key=None, url=None, pages=5, out=None,
     else:
         if not ranking_key and not url:
             print("ERROR: --ranking or --url is required for this section")
-            sys.exit(2)
+            raise CLIUsageError("参数不完整，请查看命令帮助。")
         url = url or cfg["rankings"][ranking_key]
         ranking_key = ranking_key or "custom"
         entity_header = get_entity_header(section, ranking_key) if cfg["parse_kind"] == "headers_entity" else ""
@@ -126,7 +126,7 @@ def scrape_table(section, ranking_key=None, url=None, pages=5, out=None,
 
     if not all_rows:
         print("NO ROWS SCRAPED")
-        sys.exit(1)
+        raise NoDataError("NO ROWS SCRAPED")
 
     fields = build_fields(cfg, all_rows)
     write_csv(out_path, all_rows, fields)
@@ -281,12 +281,12 @@ def run_filter(section, country=None, category=None, shop_type=None, time=None,
             dim, labels = "shop_type", shop_type
         else:
             print("ERROR: products filter requires --country / --category / --shop-type")
-            sys.exit(2)
+            raise CLIUsageError("参数不完整，请查看命令帮助。")
         scrape_filtered_products(dim, labels, pages, out, session, nav_sleep, page_sleep)
     else:
         if not ranking_key:
             print(f"ERROR: --ranking is required for {section} filter")
-            sys.exit(2)
+            raise CLIUsageError("参数不完整，请查看命令帮助。")
         scrape_filtered_dynamic(section, ranking_key, country, time, pages, out,
                                 session, nav_sleep, page_sleep)
 

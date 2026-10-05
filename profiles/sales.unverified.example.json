@@ -1,0 +1,18 @@
+{
+  "url": "",
+  "investigation": {
+    "transport": "BrowserSkill",
+    "observed_at": "",
+    "evidence": []
+  },
+  "filter_scope": "",
+  "table_scope": "",
+  "name_selector": null,
+  "period_labels": {"week": "", "month": ""},
+  "header_aliases": {},
+  "product_labels": {},
+  "read_state_js": "",
+  "click_filter_js": "",
+  "discover_options_js": "",
+  "next_page_js": ""
+}
